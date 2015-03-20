@@ -95,7 +95,7 @@ class Binary(object):
                     if not self._process.is_running():
                         self._process = None
                         break
-                if self._process.is_running():
+                if self._process is not None and self._process.is_running():
                     # Try again in a little bit...
                     return (1, self.stop)
             else:
@@ -138,26 +138,30 @@ def main():
     started_at = now()
     binaries, schedule = build(what, started_at)
     cond = threading.Condition()
-    while schedule:
-        n = now()
-        run_when, func, binary = heapq.heappop(schedule)
-        action = func.__name__
-        if run_when > n:
-            when_go = run_when - n
-            print("Sleeping for %0.2f seconds until next"
-                  " scheduled trigger of %s (%s)" % (when_go,
-                                                     binary.program, action))
-            heapq.heappush(schedule, (run_when, func, binary))
-            dump_schedule(schedule)
-            time.sleep(when_go)
-        else:
-            print("Running scheduled trigger of %s (%s)" % (binary.program,
-                                                            action))
-            next_up, followup_func = func()
-            if followup_func is not None and next_up is not None:
-                run_when = now() + next_up
-                heapq.heappush(schedule, (run_when, followup_func, binary))
-
+    try:
+        while schedule:
+            n = now()
+            run_when, func, binary = heapq.heappop(schedule)
+            action = func.__name__
+            if run_when > n:
+                when_go = run_when - n
+                print("Sleeping for %0.2f seconds until next"
+                      " scheduled trigger of %s (%s)" % (when_go,
+                                                         binary.program,
+                                                         action))
+                heapq.heappush(schedule, (run_when, func, binary))
+                dump_schedule(schedule)
+                time.sleep(when_go)
+            else:
+                print("Running scheduled trigger of %s (%s)" % (binary.program,
+                                                                action))
+                next_up, followup_func = func()
+                if followup_func is not None and next_up is not None:
+                    run_when = now() + next_up
+                    heapq.heappush(schedule, (run_when, followup_func, binary))
+    except KeyboardInterrupt:
+        for b in binaries:
+            b.stop(between_wait_for=1.0)
 
 if __name__ == '__main__':
     main()
