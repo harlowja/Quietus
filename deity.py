@@ -4,7 +4,6 @@ import copy
 import heapq
 import os
 import sys
-import threading
 import time
 
 try:
@@ -137,7 +136,6 @@ def main():
     what = util.load_yaml(sys.argv[1])
     started_at = now()
     binaries, schedule = build(what, started_at)
-    cond = threading.Condition()
     try:
         while schedule:
             n = now()
