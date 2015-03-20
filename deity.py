@@ -1,5 +1,21 @@
 #!/usr/bin/env python
 
+# -*- coding: utf-8 -*-
+
+#    Copyright (C) 2015 Yahoo! Inc. All Rights Reserved.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 import copy
 import heapq
 import os
@@ -13,7 +29,6 @@ except ImportError:
 
 import argparse
 import psutil
-import yaml
 import six
 
 from quietus import util
@@ -120,20 +135,13 @@ def build(what, now):
     return binaries, schedule
 
 
-def dump_schedule(schedule):
-    schedule = list(schedule)
-    n = now()
-    print("-- Schedule --")
-    while schedule:
-        run_when, func, binary = heapq.heappop(schedule)
-        action = func.__name__
-        delay_to = max(0, run_when - n)
-        print("Run what: %s (%s)" % (binary.program, action))
-        print(" - Expected next run in %0.2f seconds" % (delay_to))
-
-
 def main():
-    what = util.load_yaml(sys.argv[1])
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-f', '--file', dest='file', action='store',
+                        help="schedule yaml configuration file",
+                        required=True)
+    args = parser.parse_args()
+    what = util.load_yaml(args.file)
     started_at = now()
     binaries, schedule = build(what, started_at)
     try:
@@ -148,7 +156,6 @@ def main():
                                                          binary.program,
                                                          action))
                 heapq.heappush(schedule, (run_when, func, binary))
-                dump_schedule(schedule)
                 time.sleep(when_go)
             else:
                 print("Running scheduled trigger of %s (%s)" % (binary.program,
