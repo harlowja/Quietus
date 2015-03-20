@@ -52,7 +52,7 @@ class Binary(object):
         if self.death_after is not None:
             return (self.death_after, self.stop)
         else:
-            return (10, self.no_op)
+            return (10, self.dump_status)
 
     @property
     def pid(self):
@@ -61,7 +61,7 @@ class Binary(object):
         else:
             return self._process.pid
 
-    def no_op(self):
+    def dump_status(self):
         prog = " ".join(self.program)
         if self._process is None:
             status = "??"
@@ -69,7 +69,7 @@ class Binary(object):
             prog += " (%s)" % (self.pid)
             status = self._process.status()
         print("Status of %s is %s" % (prog, status))
-        return (10, self.no_op)
+        return (10, self.dump_status)
 
     def __repr__(self):
         p = self.pid
