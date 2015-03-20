@@ -25,5 +25,34 @@ for uses such as HA testing; or failover testing where having a repeatable
 and easy to read lifecycle is key for continuous testing (and helps in
 sharing those same lifecycles for others to test with).
 
+An example yaml file::
+
+    binaries:
+      redis:
+        path: "/usr/bin/redis-server"
+        arguments: []
+      memcached:
+        path: "/usr/bin/memcached"
+        arguments: []
+    
+    schedule:
+      A:
+        binary: redis
+        start_after: 0
+        death_after: 60
+        restart_delay: 30
+        arguments: ["--port", "6380"]
+      B:
+        binary: redis
+        start_after: 30
+        death_after: 60
+        arguments: ["--port", "6381"]
+      C:
+        binary: redis
+        arguments: ["--port", "6382"]
+      D:
+        binary: memcached
+        arguments: ["-p", "11212"]
+
 .. _yaml: http://yaml.org/
 
