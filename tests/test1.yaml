@@ -1,0 +1,15 @@
+binaries:
+  redis:
+    location: "/usr/bin/redis-server"
+    arguments: []
+
+schedule:
+  A:
+    binary: redis
+    start_after: 0
+    death_after: 60
+    restart_after: 30
+  B:
+   binary: redis
+   start_after: 30
+   death_after: 60
