@@ -1,6 +1,9 @@
 binaries:
   redis:
-    location: "/usr/bin/redis-server"
+    path: "/home/y/sbin/redis-server"
+    arguments: []
+  memcached:
+    path: "/home/y/bin/memcached"
     arguments: []
 
 schedule:
@@ -8,8 +11,16 @@ schedule:
     binary: redis
     start_after: 0
     death_after: 60
-    restart_after: 30
+    restart_delay: 30
+    arguments: ["--port", "6380"]
   B:
-   binary: redis
-   start_after: 30
-   death_after: 60
+    binary: redis
+    start_after: 30
+    death_after: 60
+    arguments: ["--port", "6381"]
+  C:
+    binary: redis
+    arguments: ["--port", "6382"]
+  D:
+    binary: memcached
+    arguments: ["-p", "11212"]

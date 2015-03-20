@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import copy
 import heapq
 import os
 import sys
@@ -20,18 +21,35 @@ from quietus import util
 
 
 class Binary(object):
-    def __init__(self, name, target, start_after,
+    def __init__(self, name, thing, start_after=0,
                  # May or may not be present in the config...
-                 death_after=None, restart_after=None):
+                 death_after=None, restart_delay=None):
         self.name = name
-        program = [target['location']] + target.get('arguments', [])
-        self.program = program
+        self.path = thing['path']
+        self.arguments = thing.get('arguments', [])
+        self.program = [self.path] + self.arguments
         self.start_after = start_after
         self.death_after = death_after
-        self.restart_after = restart_after
+        self.restart_delay = restart_delay
         self._process = None
 
+    def _spawn(self):
+        p = os.fork()
+        if p == 0:
+            try:
+                arguments = list(self.arguments)
+                arguments.insert(0, self.path)
+                os.execv(self.path, arguments)
+            except OSError as e:
+                sys.stderr.write("!! Failed to spawn '%s'\n" % self.program)
+                sys.stderr.write("!! %s\n" % e)
+                sys.stderr.flush()
+                os._exit(-1)
+        else:
+            return psutil.Process(p)
+
     def start(self):
+        self._process = self._spawn()
         if self.death_after is not None:
             return (self.death_after, self.stop)
         else:
@@ -45,7 +63,14 @@ class Binary(object):
             return self._process.pid
 
     def no_op(self):
-        return (10, self.check)
+        prog = " ".join(self.program)
+        if self._process is None:
+            status = "??"
+        else:
+            prog += " (%s)" % (self.pid)
+            status = self._process.status()
+        print("Status of %s is %s" % (prog, status))
+        return (10, self.no_op)
 
     def __repr__(self):
         p = self.pid
@@ -55,21 +80,28 @@ class Binary(object):
         else:
             return "<Binary '%s'>" % (prog)
 
-    def stop(self, between_wait_for=0.001):
+    def stop(self, between_wait_for=0.01):
         if self._process is not None:
             if self._process.is_running():
-                for f in [self._process.terminate,
-                          self._process.terminate,
-                          self._process.kill]:
-                    f()
-                    self._process.wait(timeout=between_wait_for)
+                attempts = [self._process.terminate,
+                            self._process.terminate,
+                            self._process.kill]
+                for func in attempts:
+                    func()
+                    try:
+                        self._process.wait(timeout=between_wait_for)
+                    except psutil.TimeoutExpired:
+                        pass
                     if not self._process.is_running():
                         self._process = None
                         break
+                if self._process.is_running():
+                    # Try again in a little bit...
+                    return (1, self.stop)
             else:
                 self._process = None
-        if self.restart_after is not None:
-            return (self.restart_after, self.start)
+        if self.restart_delay is not None:
+            return (self.restart_delay, self.start)
         else:
             return (None, None)
 
@@ -79,7 +111,9 @@ def build(what, now):
     schedule = []
     binaries = []
     for name, item in six.iteritems(what.get('schedule', {})):
-        thing = bins[item.pop('binary')]
+        thing = copy.deepcopy(bins[item.pop('binary')])
+        arguments = thing.setdefault('arguments', [])
+        arguments.extend(item.pop('arguments', []))
         b = Binary(name, thing, **item)
         binaries.append(b)
     for b in binaries:
